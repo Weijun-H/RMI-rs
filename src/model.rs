@@ -3,6 +3,8 @@ pub trait Model {
     fn fit(&mut self, x: &[f64], y: &[f64]);
     fn params(&self) -> Vec<f64>;
 }
+
+#[derive(Default, Clone)]
 pub struct LinearRegression {
     pub intercept: f64,
     pub slope: f64,
