@@ -7,6 +7,7 @@ pub fn train<M: Model + Clone>(model: &mut M, x: &[f64], y: &[f64]) -> M {
     model.clone()
 }
 
+// TODO: Extend to n layers
 /// Train a model with two layers
 /// * `layer` - The number of layers
 /// * `l` - The number of models in each layer
@@ -14,7 +15,7 @@ pub fn train<M: Model + Clone>(model: &mut M, x: &[f64], y: &[f64]) -> M {
 /// * `x` - The input data
 /// * `y` - The output data
 pub fn train_with_two_layers<M: Model + Clone>(
-    layers: usize,
+    _layers: usize,
     l: Vec<usize>,
     model: M,
     x: &[f64],
@@ -52,6 +53,10 @@ pub fn train_with_two_layers<M: Model + Clone>(
 }
 
 /// Get the model index in the next layer
+/// * `key` - The key to predict
+/// * `model` - The model to predict
+/// * `layer` - The number of layers
+/// * `size` - The size of input data
 pub fn get_model_index<M: Model>(key: f64, model: &M, layer: usize, size: usize) -> usize {
     max(
         0,
@@ -59,8 +64,17 @@ pub fn get_model_index<M: Model>(key: f64, model: &M, layer: usize, size: usize)
     )
 }
 
-pub fn predict<M: Model>(model: &M, x: f64) -> f64 {
-    model.predict(x)
+pub fn predict<M: Model>(trained_models: Vec<Vec<M>>, key: f64, size: usize) -> Option<f64> {
+    let mut j = 0;
+    for i in 0..trained_models.len() {
+        let model = &trained_models[i][j];
+        if i == trained_models.len() - 1 {
+            return Some(trained_models[i][j].predict(key));
+        } else {
+            j = get_model_index(key, model, trained_models[i + 1].len(), size);
+        };
+    }
+    None
 }
 
 #[cfg(test)]
@@ -75,22 +89,43 @@ mod test {
         let x = vec![1.0, 2.0, 3.0];
         let y = vec![1.0, 2.0, 3.0];
         train(&mut model, &x, &y);
-        assert_eq!(predict(&model, 4.0), 4.0);
         assert_eq!(model.params()[0], 0.0);
         assert_eq!(model.params()[1], 1.0);
     }
 
     #[test]
     fn test_train_with_two_layers() {
-        let mut model = LinearRegression {
+        let model = LinearRegression {
             intercept: 0.0,
             slope: 0.0,
         };
         let x = vec![1.0, 2.0, 3.0];
         let y = vec![1.0, 2.0, 3.0];
         let trained_models = train_with_two_layers(2, vec![1, 2], model, &x, &y);
-        assert_eq!(predict(&trained_models[0][0], 4.0), 4.0);
-        assert_eq!(trained_models[0][0].params()[0], 0.0);
-        assert_eq!(trained_models[0][0].params()[1], 1.0);
+        assert_eq!(predict(trained_models, 3.0, 3), Some(3.0));
+    }
+
+    #[test]
+    fn test_linear_regression_accuracy() {
+        let model = LinearRegression {
+            intercept: 0.0,
+            slope: 0.0,
+        };
+        // generate f64 random numbers between 1 and 100
+        let x: Vec<f64> = (0..1_000_000)
+            .map(|_| rand::random::<f64>() * 100.0)
+            .collect();
+        let y = x.clone();
+        let trained_models = train_with_two_layers(2, vec![1, 10], model, &x, &y);
+
+        let mut count = 0;
+        for key in x.clone() {
+            let y = predict(trained_models.clone(), key, x.len());
+            if y == Some(key) {
+                count += 1;
+            }
+        }
+        println!("Total: {}", x.len());
+        println!("Accuracy: {}%", count as f64 / x.len() as f64);
     }
 }

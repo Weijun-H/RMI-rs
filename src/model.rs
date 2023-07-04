@@ -4,7 +4,7 @@ pub trait Model {
     fn params(&self) -> Vec<f64>;
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct LinearRegression {
     pub intercept: f64,
     pub slope: f64,
